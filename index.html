@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wer bin ich? – Online Edition</title>
-    <!-- PeerJS für Online-Multiplayer -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Firebase Realtime Database SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <!-- Konfetti-Bibliothek -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
@@ -86,10 +87,6 @@
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
 
-        .btn-success:hover {
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
-        }
-
         .btn-danger {
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
@@ -106,10 +103,6 @@
             margin-bottom: 15px;
         }
 
-        input[type="text"]:focus {
-            border-color: #818cf8;
-        }
-
         label {
             display: block;
             margin-bottom: 6px;
@@ -117,7 +110,6 @@
             opacity: 0.9;
         }
 
-        /* Lobby Styles */
         .lobby-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -135,22 +127,20 @@
 
         .status-badge {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: bold;
             background: #f59e0b;
             color: white;
-            margin-bottom: 15px;
         }
 
         .hidden { display: none !important; }
 
-        /* Game Elements */
         .chat-box {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 8px;
-            height: 180px;
+            height: 200px;
             overflow-y: auto;
             padding: 10px;
             margin-bottom: 15px;
@@ -160,18 +150,18 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .chat-message {
+        .chat-msg {
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 0.9rem;
             max-width: 85%;
         }
-        .chat-message.question {
+        .chat-msg.q {
             background: rgba(79, 70, 229, 0.3);
             align-self: flex-start;
             border-left: 3px solid var(--card-p1);
         }
-        .chat-message.answer {
+        .chat-msg.a {
             background: rgba(16, 185, 129, 0.2);
             align-self: flex-end;
             border-right: 3px solid var(--accent);
@@ -205,11 +195,10 @@
             border: 1px dashed rgba(255,255,255,0.2);
         }
 
-        /* Modal */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(5px);
             z-index: 100;
             display: flex;
@@ -236,19 +225,20 @@
 
     <div class="container">
         
-        <!-- SCREEN 1: LOBBY & SETUP -->
+        <!-- SCREEN 1: LOBBY -->
         <div id="screenLobby" class="card">
             <div class="lobby-grid">
                 <!-- Host Box -->
                 <div class="lobby-box">
                     <h3>Raum erstellen</h3>
-                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Erstelle einen Raum und teile den Code mit deiner Mitspielerin.</p>
+                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Erstelle einen Raum und gib den 4-stelligen Code deiner Freundin.</p>
                     <label>Dein Name:</label>
-                    <input type="text" id="hostNameInput" placeholder="z.B. Alex">
+                    <input type="text" id="hostName" placeholder="z.B. Alex">
                     <button class="btn btn-success" onclick="createRoom()">Raum erstellen 🚀</button>
+                    
                     <div id="roomCodeDisplay" class="hidden" style="margin-top: 15px; text-align: center;">
                         <span style="font-size: 0.9rem;">Dein Raum-Code:</span>
-                        <div id="codeText" style="font-size: 2rem; font-weight: bold; color: #f472b6; letter-spacing: 2px;">----</div>
+                        <div id="codeText" style="font-size: 2rem; font-weight: bold; color: #f472b6; letter-spacing: 3px;">----</div>
                         <span style="font-size: 0.8rem; opacity: 0.8;">Warte auf Mitspieler...</span>
                     </div>
                 </div>
@@ -256,11 +246,11 @@
                 <!-- Join Box -->
                 <div class="lobby-box">
                     <h3>Raum beitreten</h3>
-                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Gib den 4-stelligen Code ein, den du erhalten hast.</p>
+                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Gib den 4-stelligen Code deines Mitspielers ein.</p>
                     <label>Dein Name:</label>
-                    <input type="text" id="joinNameInput" placeholder="z.B. Anna">
+                    <input type="text" id="joinName" placeholder="z.B. Anna">
                     <label>Raum-Code:</label>
-                    <input type="text" id="joinCodeInput" placeholder="z.B. 4829" maxlength="4">
+                    <input type="text" id="joinCode" placeholder="z.B. 4829" maxlength="4">
                     <button class="btn" onclick="joinRoom()">Beitreten 🎮</button>
                 </div>
             </div>
@@ -269,11 +259,14 @@
         <!-- SCREEN 2: SECRET SETUP -->
         <div id="screenSecret" class="card hidden">
             <h2 style="margin-bottom: 15px; text-align: center;">Geheimen Begriff festlegen</h2>
-            <p style="text-align: center; opacity: 0.8; margin-bottom: 20px; font-size: 0.9rem;">Überlege dir einen Promi, eine Filmfigur oder eine Person für deine Mitspielerin. Sie wird deinen Begriff auf ihrem Bildschirm raten müssen (du siehst deinen eigenen Begriff hier nicht!).</p>
+            <p style="text-align: center; opacity: 0.8; margin-bottom: 20px; font-size: 0.9rem;">
+                Überlege dir einen Promi/Charakter für <strong id="partnerNameDisplay">deinen Mitspieler</strong>. Er/Sie muss ihn auf dem eigenen Gerät erraten.
+            </p>
             
             <label>Geheimer Begriff für dein Gegenüber:</label>
-            <input type="text" id="mySecretInput" placeholder="z.B. Harry Potter oder Angela Merkel">
-            <button class="btn btn-success" onclick="submitSecret()">Begriff abschicken ✅</button>
+            <input type="text" id="secretInput" placeholder="z.B. Harry Potter oder Angela Merkel">
+            <button class="btn btn-success" id="submitSecretBtn" onclick="submitSecret()">Begriff abschicken ✅</button>
+            
             <div id="waitingForPartnerSecret" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic; opacity: 0.8;">
                 Begriff gespeichert! Warten darauf, dass das Gegenüber seinen Begriff wählt...
             </div>
@@ -282,31 +275,29 @@
         <!-- SCREEN 3: GAMEPLAY -->
         <div id="screenGame" class="card hidden">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(15,23,42,0.5); padding: 10px 15px; border-radius: 8px;">
-                <div>Gegner: <strong id="opponentNameDisplay">-</strong></div>
-                <div id="turnIndicator" class="status-badge" style="margin: 0;">Du bist dran!</div>
+                <div>Gegner: <strong id="gameOpponentName">-</strong></div>
+                <div id="turnIndicator" class="status-badge">Warten...</div>
             </div>
 
-            <!-- Dein zu erratender Begriff -->
+            <!-- Dein geheimer Begriff (versteckt) -->
             <div class="secret-display">
-                <span style="font-size: 0.85rem; opacity: 0.7;">Das bist du (versteckt für dich):</span>
+                <span style="font-size: 0.85rem; opacity: 0.7;">Dein eigener Begriff (für dich versteckt):</span>
                 <div id="assignedSecretDisplay" style="font-size: 1.6rem; font-weight: bold; color: #f472b6; margin-top: 5px;">???</div>
-                <button class="btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; margin-top: 8px;" onclick="toggleMySecret()">Aufdecken 👁️</button>
+                <button class="btn" style="width: auto; padding: 4px 12px; font-size: 0.75rem; margin-top: 8px;" onclick="toggleMySecret()">Aufdecken 👁️</button>
             </div>
 
-            <!-- Chat / Frage-Protokoll -->
+            <!-- Chat & Verlauf -->
             <label>Frage- & Antwort-Protokoll:</label>
-            <div id="chatBox" class="chat-box">
-                <div style="text-align: center; opacity: 0.5; font-size: 0.85rem; margin-top: auto; margin-bottom: auto;">Das Spiel hat begonnen! Stellt euch abwechselnd Fragen.</div>
-            </div>
+            <div id="chatBox" class="chat-box"></div>
 
-            <!-- Frage stellen (wenn man dran ist) -->
+            <!-- Frage stellen -->
             <div id="questionArea">
                 <label>Deine Frage an den Partner:</label>
                 <input type="text" id="questionInput" placeholder="z.B. Bin ich eine reale Person?">
                 <button class="btn btn-success" onclick="sendQuestion()">Frage abschicken 📤</button>
             </div>
 
-            <!-- Antwort geben (wenn der Partner gefragt hat) -->
+            <!-- Antwort geben -->
             <div id="answerArea" class="hidden" style="background: rgba(239, 68, 68, 0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
                 <p id="incomingQuestionText" style="font-weight: bold; margin-bottom: 10px; font-size: 1.05rem;">Partner fragt: "..."</p>
                 <label>Wähle die passende Antwort:</label>
@@ -332,188 +323,209 @@
     </div>
 
     <script>
-        let peer = null;
-        let conn = null;
+        // Freier Firebase Realtime Server für Echtzeit-Sync
+        const firebaseConfig = {
+            databaseURL: "https://wer-bin-ich-game-default-rtdb.europe-west1.firebasedatabase.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let roomRef = null;
+        let myRole = ''; // 'host' oder 'guest'
         let myName = '';
         let opponentName = '';
         let mySecret = '';
-        let opponentSecret = '';
-        let isHost = false;
-        let myTurn = false;
-        let secretRevealed = false;
-
-        // PeerJS Konfiguration mit offiziellen STUN-Servern für weltweite Verbindungen
-        const peerConfig = {
-            config: {
-                'iceServers': [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            }
-        };
-
-        function generateId() {
-            return Math.floor(1000 + Math.random() * 9000).toString();
-        }
+        let roomCode = '';
 
         function createRoom() {
-            myName = document.getElementById('hostNameInput').value.trim();
-            if (!myName) { alert('Bitte gib deinen Namen ein!'); return; }
+            myName = document.getElementById('hostName').value.trim();
+            if (!myName) return alert('Bitte gib deinen Namen ein!');
 
-            isHost = true;
-            const roomId = generateId();
-            
-            peer = new Peer('werbinich-' + roomId, peerConfig);
+            myRole = 'host';
+            roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            roomRef = db.ref('rooms/' + roomCode);
 
-            peer.on('open', (id) => {
-                document.getElementById('codeText').innerText = roomId;
-                document.getElementById('roomCodeDisplay').classList.remove('hidden');
-                document.getElementById('hostNameInput').disabled = true;
+            // Raum auf Firebase anlegen & aufräumen
+            roomRef.set({
+                hostName: myName,
+                status: 'waiting'
             });
+            roomRef.onDisconnect().remove();
 
-            peer.on('connection', (connection) => {
-                conn = connection;
-                setupConnection();
-            });
+            document.getElementById('codeText').innerText = roomCode;
+            document.getElementById('roomCodeDisplay').classList.remove('hidden');
 
-            peer.on('error', (err) => {
-                alert('Verbindungsfehler: ' + err.type);
-            });
+            listenToRoom();
         }
 
         function joinRoom() {
-            myName = document.getElementById('joinNameInput').value.trim();
-            const roomId = document.getElementById('joinCodeInput').value.trim();
-            if (!myName || roomId.length !== 4) { alert('Bitte Namen und gültigen 4-stelligen Code eingeben!'); return; }
+            myName = document.getElementById('joinName').value.trim();
+            roomCode = document.getElementById('joinCode').value.trim();
+            if (!myName || roomCode.length !== 4) return alert('Bitte Name & 4-stelligen Code eingeben!');
 
-            isHost = false;
-            peer = new Peer(peerConfig);
+            myRole = 'guest';
+            roomRef = db.ref('rooms/' + roomCode);
 
-            peer.on('open', (id) => {
-                conn = peer.connect('werbinich-' + roomId);
-                setupConnection();
-            });
+            roomRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    alert('Raum-Code nicht gefunden!');
+                    return;
+                }
+                const data = snapshot.val();
+                opponentName = data.hostName;
 
-            peer.on('error', (err) => {
-                alert('Konnte Raum nicht finden. Ist der Code korrekt?');
-            });
-        }
+                roomRef.update({
+                    guestName: myName,
+                    status: 'secret_setup'
+                });
 
-        function setupConnection() {
-            conn.on('open', () => {
-                // Namen austauschen
-                conn.send({ type: 'INIT', name: myName });
-            });
-
-            conn.on('data', (data) => {
-                handleIncomingData(data);
+                listenToRoom();
             });
         }
 
-        function handleIncomingData(data) {
-            if (data.type === 'INIT') {
-                opponentName = data.name;
-                document.getElementById('opponentNameDisplay').innerText = opponentName;
-                
-                // Wenn wir Host sind, schicken wir unseren Namen direkt zurück
-                if (isHost) {
-                    conn.send({ type: 'INIT', name: myName });
+        function listenToRoom() {
+            roomRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                if (myRole === 'host' && data.guestName) {
+                    opponentName = data.guestName;
                 }
 
-                // Weiter zum Geheimnis-Bildschirm
-                document.getElementById('screenLobby').classList.add('hidden');
-                document.getElementById('screenSecret').classList.remove('hidden');
-            }
-            else if (data.type === 'SECRET') {
-                opponentSecret = data.secret;
-                // Prüfen ob beide bereit sind
-                checkBothSecretsReady();
-            }
-            else if (data.type === 'QUESTION') {
-                appendChat(`💬 ${opponentName} fragt: "${data.text}"`, 'question');
-                document.getElementById('incomingQuestionText').innerText = `${opponentName} fragt: "${data.text}"`;
-                document.getElementById('questionArea').classList.add('hidden');
-                document.getElementById('answerArea').classList.remove('hidden');
-            }
-            else if (data.type === 'ANSWER') {
-                appendChat(`👉 Antwort für dich: ${data.text}`, 'answer');
-                myTurn = true;
-                updateTurnUI();
-            }
-            else if (data.type === 'VICTORY') {
-                showWinner(opponentName, `hat deinen geheimen Begriff (${mySecret}) erraten!`);
-            }
+                document.getElementById('partnerNameDisplay').innerText = opponentName;
+                document.getElementById('gameOpponentName').innerText = opponentName;
+
+                // Bildschirme umschalten je nach Status
+                if (data.status === 'secret_setup') {
+                    document.getElementById('screenLobby').classList.add('hidden');
+                    document.getElementById('screenSecret').classList.remove('hidden');
+                }
+
+                // Prüfen ob beide ihre Begriffe eingegeben haben
+                if (data.hostSecret && data.guestSecret) {
+                    if (data.status !== 'playing') {
+                        roomRef.update({ status: 'playing', currentTurn: 'host' });
+                    }
+                    startGameplay(data);
+                }
+
+                // Live-Spieldaten synchronisieren
+                if (data.status === 'playing') {
+                    updateGameplayUI(data);
+                }
+
+                // Gewinner-Ereignis
+                if (data.winner) {
+                    showWinner(data.winnerName, data.winnerSubText);
+                }
+            });
         }
 
         function submitSecret() {
-            mySecret = document.getElementById('mySecretInput').value.trim();
-            if (!mySecret) { alert('Bitte gib einen Begriff ein!'); return; }
+            const secret = document.getElementById('secretInput').value.trim();
+            if (!secret) return alert('Bitte Begriff eingeben!');
 
-            conn.send({ type: 'SECRET', secret: mySecret });
-            document.getElementById('mySecretInput').disabled = true;
-            document.getElementById('waitingForPartnerSecret').classList.remove('hidden');
-            
-            checkBothSecretsReady();
-        }
-
-        let partnerSecretReceived = false;
-        function checkBothSecretsReady() {
-            // Wenn wir einen Begriff vom Partner haben und er unseren hat, gehts los
-            if (mySecret && conn) {
-                // Wir wechseln zum Game-Screen, sobald beide da sind
-                document.getElementById('screenSecret').classList.add('hidden');
-                document.getElementById('screenGame').classList.remove('hidden');
-                
-                // Wer fängt an? Host fängt an
-                myTurn = isHost;
-                updateTurnUI();
+            const updateData = {};
+            // Der eigene Begriff wird als Secret für die Gegenrolle gespeichert!
+            if (myRole === 'host') {
+                updateData.guestAssignedSecret = secret; // Begriff, den der Guest raten muss
+                updateData.hostSecret = true;
+            } else {
+                updateData.hostAssignedSecret = secret; // Begriff, den der Host raten muss
+                updateData.guestSecret = true;
             }
+
+            roomRef.update(updateData);
+            document.getElementById('submitSecretBtn').disabled = true;
+            document.getElementById('waitingForPartnerSecret').classList.remove('hidden');
         }
 
-        function updateTurnUI() {
+        function startGameplay(data) {
+            document.getElementById('screenSecret').classList.add('hidden');
+            document.getElementById('screenGame').classList.remove('hidden');
+
+            // Speichern welchen Begriff ich von meinem Partner bekommen habe
+            mySecret = (myRole === 'host') ? data.hostAssignedSecret : data.guestAssignedSecret;
+        }
+
+        function updateGameplayUI(data) {
+            const isMyTurn = (data.currentTurn === myRole);
             const indicator = document.getElementById('turnIndicator');
             const qArea = document.getElementById('questionArea');
             const aArea = document.getElementById('answerArea');
 
-            if (myTurn) {
-                indicator.innerText = "Du bist am Zug (Frage stellen)!";
-                indicator.style.background = "#10b981";
-                qArea.classList.remove('hidden');
-                aArea.classList.add('hidden');
+            // Chat render
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            if (data.history) {
+                Object.values(data.history).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `chat-msg ${item.type}`;
+                    div.innerText = item.text;
+                    chatBox.appendChild(div);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            // Zug-Status & Eingaben umschalten
+            if (data.activeQuestion) {
+                if (data.activeQuestion.from !== myRole) {
+                    // Ich muss antworten
+                    indicator.innerText = "Antworte auf die Frage!";
+                    indicator.style.background = "#ef4444";
+                    qArea.classList.add('hidden');
+                    aArea.classList.remove('hidden');
+                    document.getElementById('incomingQuestionText').innerText = `${opponentName} fragt: "${data.activeQuestion.text}"`;
+                } else {
+                    // Ich warte auf die Antwort
+                    indicator.innerText = `Warten auf Antwort von ${opponentName}...`;
+                    indicator.style.background = "#f59e0b";
+                    qArea.classList.add('hidden');
+                    aArea.classList.add('hidden');
+                }
             } else {
-                indicator.innerText = `${opponentName} ist am Zug...`;
-                indicator.style.background = "#f59e0b";
-                qArea.classList.add('hidden');
+                aArea.classList.add('hidden');
+                if (isMyTurn) {
+                    indicator.innerText = "Du bist am Zug (Frage stellen)!";
+                    indicator.style.background = "#10b981";
+                    qArea.classList.remove('hidden');
+                } else {
+                    indicator.innerText = `${opponentName} ist am Zug...`;
+                    indicator.style.background = "#f59e0b";
+                    qArea.classList.add('hidden');
+                }
             }
         }
 
         function sendQuestion() {
-            const qText = document.getElementById('questionInput').value.trim();
-            if (!qText) return;
+            const input = document.getElementById('questionInput');
+            const text = input.value.trim();
+            if (!text) return;
 
-            appendChat(`💬 Du fragst: "${qText}"`, 'answer');
-            conn.send({ type: 'QUESTION', text: qText });
-            document.getElementById('questionInput').value = '';
-            
-            myTurn = false;
-            updateTurnUI();
+            roomRef.child('history').push({
+                text: `💬 ${myName} fragt: "${text}"`,
+                type: 'q'
+            });
+
+            roomRef.update({
+                activeQuestion: { text: text, from: myRole }
+            });
+
+            input.value = '';
         }
 
         function sendAnswer(ansText) {
-            appendChat(`👉 Antwort an ${opponentName}: ${ansText}`, 'question');
-            conn.send({ type: 'ANSWER', text: ansText });
-            
-            document.getElementById('answerArea').classList.add('hidden');
-            document.getElementById('questionArea').classList.remove('hidden');
-        }
+            roomRef.child('history').push({
+                text: `👉 Antwort von ${myName}: ${ansText}`,
+                type: 'a'
+            });
 
-        function appendChat(text, type) {
-            const box = document.getElementById('chatBox');
-            const msg = document.createElement('div');
-            msg.className = `chat-message ${type}`;
-            msg.innerText = text;
-            box.appendChild(msg);
-            box.scrollTop = box.scrollHeight;
+            const nextTurn = (myRole === 'host') ? 'guest' : 'host';
+
+            roomRef.update({
+                activeQuestion: null,
+                currentTurn: nextTurn
+            });
         }
 
         function toggleMySecret() {
@@ -526,21 +538,19 @@
         }
 
         function declareVictory() {
-            if (confirm("Bist du sicher, dass du deinen Begriff erraten hast?")) {
-                conn.send({ type: 'VICTORY' });
-                showWinner(myName, `hat den eigenen Begriff (${opponentSecret}) erraten! 🎉`);
-                triggerConfetti();
+            if (confirm("Hast du deinen Begriff wirklich erraten?")) {
+                roomRef.update({
+                    winner: true,
+                    winnerName: myName,
+                    winnerSubText: `hat den Begriff "${mySecret}" richtig erraten! 🎉`
+                });
             }
         }
 
-        function showWinner(winnerName, subText) {
-            document.getElementById('winnerText').innerText = `${winnerName} gewinnt!`;
+        function showWinner(name, subText) {
+            document.getElementById('winnerText').innerText = `${name} gewinnt!`;
             document.getElementById('winnerSubText').innerText = subText;
             document.getElementById('winnerModal').classList.remove('hidden');
-            triggerConfetti();
-        }
-
-        function triggerConfetti() {
             confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
         }
     </script>
