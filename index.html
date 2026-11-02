@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wer bin ich? – Live Duell</title>
+    <title>Wer bin ich? – Live Duell v1.2</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -56,7 +56,7 @@
 
     <header>
         <h1>Wer bin ich?</h1>
-        <p>Echtzeit-Duell für zwei Geräte</p>
+        <p>Echtzeit-Duell (v1.2)</p>
     </header>
 
     <div class="container">
@@ -325,11 +325,13 @@
             const displayAns = (ansText === 'JA') ? 'JA 👍' : (ansText === 'NEIN' ? 'NEIN 👎' : 'UNKLAR 🤷‍♂️');
             roomRef.child('history').push({ text: `👉 Antwort von ${myName}: ${displayAns}`, type: 'a' });
             
+            // Bestimme das nächste Turn: Wer die Frage gestellt hat (activeQuestion.from) vs. wer geantwortet hat (myRole)
+            // Bei NEIN geht der Zug an den Antwortenden (myRole), bei JA/UNKLAR bleibt er beim Frager.
             let nextTurn;
             if (ansText === 'NEIN') {
-                nextTurn = (myRole === 'host') ? 'guest' : 'host';
+                nextTurn = myRole; // Derjenige, der gerade mit NEIN geantwortet hat, ist jetzt dran!
             } else {
-                nextTurn = (myRole === 'host') ? 'host' : 'guest';
+                nextTurn = (myRole === 'host') ? 'guest' : 'host'; // Der Frager bleibt dran
             }
             
             roomRef.update({ 
