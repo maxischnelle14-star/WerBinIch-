@@ -1,762 +1,547 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wer bin ich? – Echtzeit Multiplayer</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            500: '#06b6d4',
-                            600: '#0891b2',
-                            900: '#164e63',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Canvas Confetti CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- PeerJS CDN for WebRTC P2P Multiplayer -->
+    <title>Wer bin ich? – Online Edition</title>
+    <!-- PeerJS für Online-Multiplayer -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Konfetti-Bibliothek -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-p1: #4f46e5;
+            --card-p2: #ec4899;
+            --accent: #10b981;
+            --text-light: #f8fafc;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
-            background-attachment: fixed;
+            background: var(--bg-gradient);
+            color: var(--text-light);
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
         }
 
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        header {
+            text-align: center;
+            margin-bottom: 20px;
         }
 
-        .glass-input {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #818cf8, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .glass-input:focus {
-            border-color: #38bdf8;
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 1rem;
             outline: none;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+            margin-bottom: 15px;
         }
 
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
+        input[type="text"]:focus {
+            border-color: #818cf8;
         }
-        ::-webkit-scrollbar-track {
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Lobby Styles */
+        .lobby-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media(min-width: 600px) {
+            .lobby-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .lobby-box {
             background: rgba(15, 23, 42, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(51, 65, 85, 0.8);
-            border-radius: 3px;
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            background: #f59e0b;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Game Elements */
+        .chat-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            height: 180px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            max-width: 85%;
+        }
+        .chat-message.question {
+            background: rgba(79, 70, 229, 0.3);
+            align-self: flex-start;
+            border-left: 3px solid var(--card-p1);
+        }
+        .chat-message.answer {
+            background: rgba(16, 185, 129, 0.2);
+            align-self: flex-end;
+            border-right: 3px solid var(--accent);
+        }
+
+        .answer-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .ans-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-yes { background: #10b981; }
+        .btn-no { background: #ef4444; }
+        .btn-maybe { background: #f59e0b; }
+
+        .secret-display {
+            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            border: 1px dashed rgba(255,255,255,0.2);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255,255,255,0.1);
         }
     </style>
 </head>
-<body class="text-slate-100 flex flex-col justify-between p-3 sm:p-6 min-h-screen">
+<body>
 
-    <!-- HEADER -->
-    <header class="max-w-4xl mx-auto w-full text-center mb-6">
-        <div class="inline-flex items-center space-x-2 bg-slate-800/80 border border-slate-700/80 px-4 py-1.5 rounded-full text-xs font-semibold text-sky-400 mb-3 shadow-lg">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Online P2P Edition</span>
-        </div>
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400">
-            Wer bin ich?
-        </h1>
-        <p class="text-slate-400 text-xs sm:text-sm mt-1">Spiele live auf zwei verschiedenen Geräten zusammen!</p>
+    <header>
+        <h1>Wer bin ich?</h1>
+        <p>Online-Duell für zwei Spieler</p>
     </header>
 
-    <!-- MAIN APP CONTAINER -->
-    <main class="max-w-4xl mx-auto w-full flex-grow flex flex-col justify-center">
-
-        <!-- ========================================== -->
-        <!-- LOBBY / RAUM ERSTELLEN ODER BEITRETEN       -->
-        <!-- ========================================== -->
-        <div id="lobby-screen" class="glass-card rounded-3xl p-6 sm:p-10 shadow-2xl max-w-lg mx-auto w-full transition-all">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-gradient-to-tr from-sky-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-sky-500/20">
-                    <i class="fa-solid fa-tower-broadcast text-2xl text-white"></i>
+    <div class="container">
+        
+        <!-- SCREEN 1: LOBBY & SETUP -->
+        <div id="screenLobby" class="card">
+            <div class="lobby-grid">
+                <!-- Host Box -->
+                <div class="lobby-box">
+                    <h3>Raum erstellen</h3>
+                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Erstelle einen Raum und teile den Code mit deiner Mitspielerin.</p>
+                    <label>Dein Name:</label>
+                    <input type="text" id="hostNameInput" placeholder="z.B. Alex">
+                    <button class="btn btn-success" onclick="createRoom()">Raum erstellen 🚀</button>
+                    <div id="roomCodeDisplay" class="hidden" style="margin-top: 15px; text-align: center;">
+                        <span style="font-size: 0.9rem;">Dein Raum-Code:</span>
+                        <div id="codeText" style="font-size: 2rem; font-weight: bold; color: #f472b6; letter-spacing: 2px;">----</div>
+                        <span style="font-size: 0.8rem; opacity: 0.8;">Warte auf Mitspieler...</span>
+                    </div>
                 </div>
-                <h2 class="text-2xl font-bold text-white">Spielraum auswählen</h2>
-                <p class="text-slate-400 text-sm mt-1">Erstelle einen Raum oder tritt deinem Partner bei</p>
-            </div>
 
-            <!-- TAB SELECTION -->
-            <div class="flex bg-slate-900/60 p-1.5 rounded-2xl mb-6 border border-slate-800">
-                <button id="tab-host-btn" onclick="switchLobbyTab('host')" class="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-md">
-                    Raum Erstellen
-                </button>
-                <button id="tab-join-btn" onclick="switchLobbyTab('join')" class="flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all">
-                    Beitreten
-                </button>
-            </div>
-
-            <!-- HOST TAB -->
-            <div id="host-panel" class="space-y-5">
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dein Name</label>
-                    <input type="text" id="host-name-input" placeholder="z. B. Alex" class="w-full px-4 py-3 rounded-xl glass-input text-white text-base font-semibold">
-                </div>
-                <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-base rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-plus-circle"></i>
-                    <span>Raum erstellen & Code generieren</span>
-                </button>
-            </div>
-
-            <!-- JOIN TAB -->
-            <div id="join-panel" class="space-y-5 hidden">
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Dein Name</label>
-                    <input type="text" id="join-name-input" placeholder="z. B. Sam" class="w-full px-4 py-3 rounded-xl glass-input text-white text-base font-semibold">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">4-stelliger Raum-Code</label>
-                    <input type="text" id="join-code-input" placeholder="z. B. 4829" maxlength="4" class="w-full px-4 py-3 rounded-xl glass-input text-white text-center text-2xl font-mono font-bold tracking-widest uppercase">
-                </div>
-                <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white font-bold text-base rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-right-to-bracket"></i>
-                    <span>Dem Raum beitreten</span>
-                </button>
-            </div>
-
-            <!-- WAITING MODAL FOR HOST -->
-            <div id="waiting-for-peer" class="hidden mt-6 bg-slate-900/90 border border-sky-500/30 p-5 rounded-2xl text-center space-y-3">
-                <div class="inline-flex items-center space-x-2 text-sky-400 font-semibold text-sm">
-                    <i class="fa-solid fa-spinner animate-spin"></i>
-                    <span>Warte auf Mitspieler...</span>
-                </div>
-                <p class="text-xs text-slate-400">Teile diesen Code mit deiner Freundin / deinem Freund:</p>
-                <div class="text-4xl font-mono font-black text-white bg-slate-950/80 py-3 rounded-xl border border-slate-800 tracking-widest text-sky-400 select-all" id="generated-room-code">
-                    ----
+                <!-- Join Box -->
+                <div class="lobby-box">
+                    <h3>Raum beitreten</h3>
+                    <p style="font-size: 0.85rem; opacity: 0.7; margin: 5px 0 15px 0;">Gib den 4-stelligen Code ein, den du erhalten hast.</p>
+                    <label>Dein Name:</label>
+                    <input type="text" id="joinNameInput" placeholder="z.B. Anna">
+                    <label>Raum-Code:</label>
+                    <input type="text" id="joinCodeInput" placeholder="z.B. 4829" maxlength="4">
+                    <button class="btn" onclick="joinRoom()">Beitreten 🎮</button>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- PHASE: SECRET SETUP (BEGRIFF EINGEBEN)     -->
-        <!-- ========================================== -->
-        <div id="secret-setup-screen" class="glass-card rounded-3xl p-6 sm:p-10 shadow-2xl max-w-lg mx-auto w-full hidden">
-            <div class="text-center mb-6">
-                <div class="w-14 h-14 bg-purple-500/20 border border-purple-500/40 rounded-2xl flex items-center justify-center mx-auto mb-3 text-purple-400 text-2xl">
-                    <i class="fa-solid fa-user-secret"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-white">Geheimer Begriff</h2>
-                <p class="text-slate-400 text-sm mt-1">
-                    Wen soll <span id="target-player-name" class="font-bold text-sky-400">dein Mitspieler</span> erraten?
-                </p>
-            </div>
-
-            <div class="space-y-5">
-                <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Promi / Charakter / Figur</label>
-                    <input type="text" id="secret-word-input" placeholder="z. B. Harry Potter, Taylor Swift, Pikachu..." class="w-full px-4 py-3 rounded-xl glass-input text-white text-lg font-semibold">
-                    <p class="text-xs text-slate-500 mt-2">
-                        <i class="fa-solid fa-lock mr-1"></i>Dein Mitspieler sieht diesen Begriff erst, wenn das Spiel zu Ende ist!
-                    </p>
-                </div>
-
-                <button id="submit-secret-btn" onclick="submitSecretWord()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-base rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-check-circle"></i>
-                    <span>Begriff einloggen</span>
-                </button>
-
-                <div id="waiting-other-secret" class="hidden text-center py-4 text-slate-400 text-sm animate-pulse flex items-center justify-center space-x-2">
-                    <i class="fa-solid fa-hourglass-half text-amber-400"></i>
-                    <span>Warte, bis dein Mitspieler seinen Begriff eingegeben hat...</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- MAIN GAME DASHBOARD                        -->
-        <!-- ========================================== -->
-        <div id="game-dashboard" class="hidden space-y-6">
-
-            <!-- TOP STATUS BAR -->
-            <div class="glass-card rounded-2xl p-4 flex flex-wrap justify-between items-center gap-4">
-                <!-- Connected Info -->
-                <div class="flex items-center space-x-3">
-                    <div class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
-                    <div>
-                        <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Mitspieler</div>
-                        <div id="opponent-name-display" class="font-bold text-white text-base">---</div>
-                    </div>
-                </div>
-
-                <!-- Turn Indicator -->
-                <div id="turn-badge" class="px-4 py-2 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-300 text-xs sm:text-sm font-bold flex items-center space-x-2">
-                    <i class="fa-solid fa-circle-play"></i>
-                    <span id="turn-badge-text">Du bist am Zug!</span>
-                </div>
-
-                <!-- Reveal Word Button (Optionally for forfeit) -->
-                <button onclick="confirmSurrender()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 px-3 py-2 rounded-lg border border-slate-700 transition-colors">
-                    <i class="fa-solid fa-flag mr-1"></i>Aufgeben / Auflösen
-                </button>
-            </div>
-
-            <!-- MAIN PLAYING AREA GRID -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                <!-- LEFT COLUMN: Secret Info & Question Input / Answer Panel (2 Cols) -->
-                <div class="lg:col-span-2 space-y-6">
-
-                    <!-- CARD: YOUR CARD STATE & OPPONENT'S WORD -->
-                    <div class="glass-card rounded-3xl p-6 border-2 border-indigo-500/30 relative overflow-hidden">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Deine Stirnband-Karte</span>
-                                <h3 class="text-lg font-bold text-white">Wen musst du erraten?</h3>
-                            </div>
-                            <span class="bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs px-3 py-1 rounded-full font-bold">
-                                Geheimes Wort
-                            </span>
-                        </div>
-
-                        <!-- Secret display box -->
-                        <div class="bg-slate-950/80 rounded-2xl p-5 border border-slate-800 text-center relative flex flex-col items-center justify-center min-h-[100px]">
-                            <i class="fa-solid fa-eye-slash text-3xl text-slate-600 mb-2"></i>
-                            <p class="text-xs text-slate-400 font-semibold">Nur dein Gegenüber sieht deinen Begriff auf seinem Gerät!</p>
-                            <p class="text-xs text-indigo-400 mt-1 font-mono">Stelle Ja/Nein-Fragen, um es herauszufinden.</p>
-                        </div>
-
-                        <!-- Opponent's word display (Shows what the opponent needs to guess) -->
-                        <div class="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
-                            <span class="text-slate-400">Begriff deines Mitspielers:</span>
-                            <span id="opponent-target-word-display" class="font-extrabold text-amber-400 text-sm bg-amber-400/10 px-3 py-1 rounded-lg border border-amber-400/20">
-                                ???
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- CARD: ACTION AREA (FRAGE STELLEN ODER ANTWORTEN) -->
-                    
-                    <!-- ACTION 1: FRAGE STELLEN (Wenn man am Zug ist) -->
-                    <div id="ask-question-panel" class="glass-card rounded-3xl p-6 border-2 border-sky-500/30">
-                        <h3 class="text-base font-bold text-white mb-3 flex items-center space-x-2">
-                            <i class="fa-solid fa-circle-question text-sky-400"></i>
-                            <span>Stelle deinem Mitspieler eine Frage</span>
-                        </h3>
-                        
-                        <div class="flex space-x-2">
-                            <input type="text" id="question-input" placeholder="z. B. Bin ich eine männliche Person?" class="flex-1 px-4 py-3 rounded-xl glass-input text-white text-sm font-semibold">
-                            <button onclick="sendQuestion()" class="px-5 py-3 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center space-x-2">
-                                <span>Senden</span>
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
-                        <p class="text-xs text-slate-400 mt-2">Tipp: Stelle Fragen, die mit JA oder NEIN beantwortet werden können!</p>
-                    </div>
-
-                    <!-- ACTION 2: FRAGE ANTWORTEN (Wenn der andere am Zug ist und gefragt hat) -->
-                    <div id="answer-question-panel" class="glass-card rounded-3xl p-6 border-2 border-purple-500/30 hidden">
-                        <div class="text-xs font-bold uppercase tracking-wider text-purple-400 mb-1">Eingehende Frage von deinem Gegenüber</div>
-                        <h3 id="incoming-question-text" class="text-xl font-extrabold text-white mb-5 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-                            "---"
-                        </h3>
-
-                        <div class="grid grid-cols-3 gap-3">
-                            <button onclick="sendAnswer('JA')" class="py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-emerald-600/25 transition-all flex flex-col items-center justify-center space-y-1">
-                                <i class="fa-solid fa-check text-lg"></i>
-                                <span>JA</span>
-                            </button>
-                            <button onclick="sendAnswer('NEIN')" class="py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-rose-600/25 transition-all flex flex-col items-center justify-center space-y-1">
-                                <i class="fa-solid fa-xmark text-lg"></i>
-                                <span>NEIN</span>
-                            </button>
-                            <button onclick="sendAnswer('UNKLAR')" class="py-3.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-extrabold text-xs rounded-xl transition-all flex flex-col items-center justify-center space-y-1">
-                                <i class="fa-solid fa-question text-lg"></i>
-                                <span>UNKLAR / KA</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- ACTION 3: WARTE-PANEL -->
-                    <div id="waiting-turn-panel" class="glass-card rounded-3xl p-6 text-center hidden">
-                        <div class="inline-flex items-center space-x-2 text-slate-400 text-sm font-semibold">
-                            <i class="fa-solid fa-spinner animate-spin text-sky-400"></i>
-                            <span>Dein Mitspieler formulierte gerade eine Frage...</span>
-                        </div>
-                    </div>
-
-                    <!-- GUESS / SOLUTION BOX -->
-                    <div class="glass-card rounded-3xl p-6 border border-emerald-500/30">
-                        <h3 class="text-base font-bold text-white mb-2 flex items-center space-x-2">
-                            <i class="fa-solid fa-trophy text-amber-400"></i>
-                            <span>Weißt du schon, wer du bist?</span>
-                        </h3>
-                        <div class="flex space-x-2">
-                            <input type="text" id="guess-input" placeholder="Gib deinen finalen Tipp ein..." class="flex-1 px-4 py-3 rounded-xl glass-input text-white text-sm font-semibold">
-                            <button onclick="submitFinalGuess()" class="px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
-                                Erraten!
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- RIGHT COLUMN: CHAT & LOG / NOTES (1 Col) -->
-                <div class="space-y-6">
-
-                    <!-- QUESTION HISTORY / CHAT LOG -->
-                    <div class="glass-card rounded-3xl p-5 flex flex-col h-[320px]">
-                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-                            <span><i class="fa-solid fa-list-check mr-1 text-sky-400"></i>Fragen-Verlauf</span>
-                            <span id="log-count" class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full">0 Fragen</span>
-                        </h3>
-                        <div id="game-chat-log" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-                            <div class="text-slate-500 text-center italic py-8">Noch keine Fragen gestellt...</div>
-                        </div>
-                    </div>
-
-                    <!-- NOTES TEXTAREA -->
-                    <div class="glass-card rounded-3xl p-5">
-                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-                            <span><i class="fa-solid fa-pen-to-square mr-1 text-purple-400"></i>Eigene Notizen</span>
-                        </h3>
-                        <textarea id="personal-notes" placeholder="Hier kannst du dir Hinweise aufschreiben..." class="w-full h-28 p-3 text-xs glass-input rounded-xl text-slate-200 resize-none font-medium focus:outline-none"></textarea>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="max-w-4xl mx-auto w-full text-center mt-6 text-slate-500 text-xs font-medium">
-        Wer bin ich? – Echtzeit WebRTC Online Edition
-    </footer>
-
-    <!-- WINNER / GAME OVER MODAL -->
-    <div id="game-over-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-        <div class="glass-card rounded-3xl max-w-md w-full p-8 text-center border-2 border-emerald-400/40 shadow-2xl space-y-4">
-            <div class="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-400 text-emerald-400 text-4xl">
-                <i class="fa-solid fa-trophy"></i>
-            </div>
-            <h2 id="modal-winner-title" class="text-3xl font-black text-white">GEWONNEN!</h2>
-            <p id="modal-winner-desc" class="text-slate-300 text-sm">Du hast deinen Begriff richtig erraten!</p>
+        <!-- SCREEN 2: SECRET SETUP -->
+        <div id="screenSecret" class="card hidden">
+            <h2 style="margin-bottom: 15px; text-align: center;">Geheimen Begriff festlegen</h2>
+            <p style="text-align: center; opacity: 0.8; margin-bottom: 20px; font-size: 0.9rem;">Überlege dir einen Promi, eine Filmfigur oder eine Person für deine Mitspielerin. Sie wird deinen Begriff auf ihrem Bildschirm raten müssen (du siehst deinen eigenen Begriff hier nicht!).</p>
             
-            <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
-                <div class="flex justify-between">
-                    <span class="text-slate-400">Dein Begriff war:</span>
-                    <span id="modal-my-word" class="font-bold text-sky-300">---</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-slate-400">Begriff deines Partners:</span>
-                    <span id="modal-partner-word" class="font-bold text-purple-300">---</span>
+            <label>Geheimer Begriff für dein Gegenüber:</label>
+            <input type="text" id="mySecretInput" placeholder="z.B. Harry Potter oder Angela Merkel">
+            <button class="btn btn-success" onclick="submitSecret()">Begriff abschicken ✅</button>
+            <div id="waitingForPartnerSecret" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic; opacity: 0.8;">
+                Begriff gespeichert! Warten darauf, dass das Gegenüber seinen Begriff wählt...
+            </div>
+        </div>
+
+        <!-- SCREEN 3: GAMEPLAY -->
+        <div id="screenGame" class="card hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(15,23,42,0.5); padding: 10px 15px; border-radius: 8px;">
+                <div>Gegner: <strong id="opponentNameDisplay">-</strong></div>
+                <div id="turnIndicator" class="status-badge" style="margin: 0;">Du bist dran!</div>
+            </div>
+
+            <!-- Dein zu erratender Begriff -->
+            <div class="secret-display">
+                <span style="font-size: 0.85rem; opacity: 0.7;">Das bist du (versteckt für dich):</span>
+                <div id="assignedSecretDisplay" style="font-size: 1.6rem; font-weight: bold; color: #f472b6; margin-top: 5px;">???</div>
+                <button class="btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; margin-top: 8px;" onclick="toggleMySecret()">Aufdecken 👁️</button>
+            </div>
+
+            <!-- Chat / Frage-Protokoll -->
+            <label>Frage- & Antwort-Protokoll:</label>
+            <div id="chatBox" class="chat-box">
+                <div style="text-align: center; opacity: 0.5; font-size: 0.85rem; margin-top: auto; margin-bottom: auto;">Das Spiel hat begonnen! Stellt euch abwechselnd Fragen.</div>
+            </div>
+
+            <!-- Frage stellen (wenn man dran ist) -->
+            <div id="questionArea">
+                <label>Deine Frage an den Partner:</label>
+                <input type="text" id="questionInput" placeholder="z.B. Bin ich eine reale Person?">
+                <button class="btn btn-success" onclick="sendQuestion()">Frage abschicken 📤</button>
+            </div>
+
+            <!-- Antwort geben (wenn der Partner gefragt hat) -->
+            <div id="answerArea" class="hidden" style="background: rgba(239, 68, 68, 0.15); padding: 15px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <p id="incomingQuestionText" style="font-weight: bold; margin-bottom: 10px; font-size: 1.05rem;">Partner fragt: "..."</p>
+                <label>Wähle die passende Antwort:</label>
+                <div class="answer-buttons">
+                    <button class="ans-btn btn-yes" onclick="sendAnswer('JA 👍')">JA</button>
+                    <button class="ans-btn btn-no" onclick="sendAnswer('NEIN 👎')">NEIN</button>
+                    <button class="ans-btn btn-maybe" onclick="sendAnswer('UNKLAR 🤷‍♂️')">UNKLAR</button>
                 </div>
             </div>
 
-            <button onclick="location.reload()" class="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-sm rounded-xl shadow-lg transition-all">
-                Neues Spiel starten
-            </button>
+            <button class="btn btn-danger" style="margin-top: 20px;" onclick="declareVictory()">Ich habe meinen Begriff erraten! 🎉</button>
         </div>
     </div>
 
+    <!-- WINNER MODAL -->
+    <div id="winnerModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
+            <h2 id="winnerText" style="color: #10b981; margin-bottom: 10px;">Gewonnen!</h2>
+            <p id="winnerSubText" style="margin-bottom: 20px; opacity: 0.9; font-size: 0.95rem;"></p>
+            <button class="btn btn-success" onclick="location.reload()">Neues Spiel</button>
+        </div>
+    </div>
 
-    <!-- ========================================== -->
-    <!-- PEERJS & GAME LOGIC CODE                   -->
-    <!-- ========================================== -->
     <script>
-        // GLOBAL APP STATE
         let peer = null;
         let conn = null;
-        let myRole = ''; // 'host' or 'join'
         let myName = '';
         let opponentName = '';
-        
-        let mySecretForOpponent = '';
-        let opponentSecretForMe = '';
-        let opponentSecretSubmitted = false;
-        
-        let isMyTurn = false;
-        let pendingQuestion = '';
-        let questionHistory = [];
+        let mySecret = '';
+        let opponentSecret = '';
+        let isHost = false;
+        let myTurn = false;
+        let secretRevealed = false;
 
-        // DOM ELEMENTS
-        const lobbyScreen = document.getElementById('lobby-screen');
-        const secretSetupScreen = document.getElementById('secret-setup-screen');
-        const gameDashboard = document.getElementById('game-dashboard');
-
-        // LOBBY TAB SWITCHING
-        function switchLobbyTab(tab) {
-            const hostBtn = document.getElementById('tab-host-btn');
-            const joinBtn = document.getElementById('tab-join-btn');
-            const hostPanel = document.getElementById('host-panel');
-            const joinPanel = document.getElementById('join-panel');
-
-            if (tab === 'host') {
-                hostBtn.className = 'flex-1 py-2.5 rounded-xl font-bold text-sm transition-all bg-sky-500 text-white shadow-md';
-                joinBtn.className = 'flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all';
-                hostPanel.classList.remove('hidden');
-                joinPanel.classList.add('hidden');
-            } else {
-                joinBtn.className = 'flex-1 py-2.5 rounded-xl font-bold text-sm transition-all bg-purple-500 text-white shadow-md';
-                hostBtn.className = 'flex-1 py-2.5 rounded-xl font-bold text-sm text-slate-400 hover:text-white transition-all';
-                joinPanel.classList.remove('hidden');
-                hostPanel.classList.add('hidden');
+        // PeerJS Konfiguration mit offiziellen STUN-Servern für weltweite Verbindungen
+        const peerConfig = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
             }
-        }
+        };
 
-        // GENERATE 4 DIGIT ROOM CODE
-        function generateRoomCode() {
+        function generateId() {
             return Math.floor(1000 + Math.random() * 9000).toString();
         }
 
-        // CREATE ROOM (HOST)
         function createRoom() {
-            const name = document.getElementById('host-name-input').value.trim();
-            if (!name) {
-                alert('Bitte gib deinen Namen ein!');
-                return;
-            }
+            myName = document.getElementById('hostNameInput').value.trim();
+            if (!myName) { alert('Bitte gib deinen Namen ein!'); return; }
 
-            myName = name;
-            myRole = 'host';
-            const roomCode = generateRoomCode();
-            const peerId = 'werbinich-' + roomCode;
-
-            document.getElementById('generated-room-code').innerText = roomCode;
-            document.getElementById('waiting-for-peer').classList.remove('hidden');
-
-            // Initialize PeerJS
-            peer = new Peer(peerId);
+            isHost = true;
+            const roomId = generateId();
+            
+            peer = new Peer('werbinich-' + roomId, peerConfig);
 
             peer.on('open', (id) => {
-                console.log('Host Room created with ID:', id);
+                document.getElementById('codeText').innerText = roomId;
+                document.getElementById('roomCodeDisplay').classList.remove('hidden');
+                document.getElementById('hostNameInput').disabled = true;
             });
 
             peer.on('connection', (connection) => {
                 conn = connection;
-                setupConnectionListeners();
+                setupConnection();
             });
 
             peer.on('error', (err) => {
-                console.error('Peer error:', err);
-                alert('Fehler beim Erstellen des Raums. Bitte versuche es erneut.');
+                alert('Verbindungsfehler: ' + err.type);
             });
         }
 
-        // JOIN ROOM (GUEST)
         function joinRoom() {
-            const name = document.getElementById('join-name-input').value.trim();
-            const code = document.getElementById('join-code-input').value.trim();
+            myName = document.getElementById('joinNameInput').value.trim();
+            const roomId = document.getElementById('joinCodeInput').value.trim();
+            if (!myName || roomId.length !== 4) { alert('Bitte Namen und gültigen 4-stelligen Code eingeben!'); return; }
 
-            if (!name) {
-                alert('Bitte gib deinen Namen ein!');
-                return;
-            }
-            if (!code || code.length !== 4) {
-                alert('Bitte gib den gültigen 4-stelligen Raum-Code ein!');
-                return;
-            }
+            isHost = false;
+            peer = new Peer(peerConfig);
 
-            myName = name;
-            myRole = 'join';
-            const hostPeerId = 'werbinich-' + code;
-
-            peer = new Peer();
-
-            peer.on('open', () => {
-                conn = peer.connect(hostPeerId);
-                setupConnectionListeners();
+            peer.on('open', (id) => {
+                conn = peer.connect('werbinich-' + roomId);
+                setupConnection();
             });
 
             peer.on('error', (err) => {
-                console.error('Peer join error:', err);
-                alert('Raum konnte nicht gefunden werden! Überprüfe den Code.');
+                alert('Konnte Raum nicht finden. Ist der Code korrekt?');
             });
         }
 
-        // SETUP REALTIME LISTENERS
-        function setupConnectionListeners() {
+        function setupConnection() {
             conn.on('open', () => {
-                console.log('P2P Connection Established!');
-                
-                // Send Handshake Name
-                sendData({ type: 'HANDSHAKE', name: myName });
-
-                // Go to Secret Setup Phase
-                lobbyScreen.classList.add('hidden');
-                secretSetupScreen.classList.remove('hidden');
+                // Namen austauschen
+                conn.send({ type: 'INIT', name: myName });
             });
 
             conn.on('data', (data) => {
                 handleIncomingData(data);
             });
-
-            conn.on('close', () => {
-                alert('Verbindung zum Mitspieler abgebrochen.');
-                location.reload();
-            });
         }
 
-        // SEND DATA VIA WEBRTC
-        function sendData(data) {
-            if (conn && conn.open) {
-                conn.send(data);
-            }
-        }
-
-        // HANDLE INCOMING MESSAGES
         function handleIncomingData(data) {
-            console.log('Received:', data);
+            if (data.type === 'INIT') {
+                opponentName = data.name;
+                document.getElementById('opponentNameDisplay').innerText = opponentName;
+                
+                // Wenn wir Host sind, schicken wir unseren Namen direkt zurück
+                if (isHost) {
+                    conn.send({ type: 'INIT', name: myName });
+                }
 
-            switch (data.type) {
-                case 'HANDSHAKE':
-                    opponentName = data.name;
-                    document.getElementById('target-player-name').innerText = opponentName;
-                    document.getElementById('opponent-name-display').innerText = opponentName;
-                    break;
-
-                case 'SUBMIT_SECRET':
-                    opponentSecretForMe = data.secretWord;
-                    opponentSecretSubmitted = true;
-                    checkBothSecretsReady();
-                    break;
-
-                case 'QUESTION':
-                    pendingQuestion = data.question;
-                    showIncomingQuestion(data.question);
-                    break;
-
-                case 'ANSWER':
-                    handleAnswerReceived(data.answer, data.question);
-                    break;
-
-                case 'WINNER':
-                    handleGameEnd(false, data.winnerName, data.secretWord);
-                    break;
-
-                case 'SURRENDER':
-                    alert(`${opponentName} hat aufgegeben!`);
-                    handleGameEnd(true, myName, opponentSecretForMe);
-                    break;
+                // Weiter zum Geheimnis-Bildschirm
+                document.getElementById('screenLobby').classList.add('hidden');
+                document.getElementById('screenSecret').classList.remove('hidden');
+            }
+            else if (data.type === 'SECRET') {
+                opponentSecret = data.secret;
+                // Prüfen ob beide bereit sind
+                checkBothSecretsReady();
+            }
+            else if (data.type === 'QUESTION') {
+                appendChat(`💬 ${opponentName} fragt: "${data.text}"`, 'question');
+                document.getElementById('incomingQuestionText').innerText = `${opponentName} fragt: "${data.text}"`;
+                document.getElementById('questionArea').classList.add('hidden');
+                document.getElementById('answerArea').classList.remove('hidden');
+            }
+            else if (data.type === 'ANSWER') {
+                appendChat(`👉 Antwort für dich: ${data.text}`, 'answer');
+                myTurn = true;
+                updateTurnUI();
+            }
+            else if (data.type === 'VICTORY') {
+                showWinner(opponentName, `hat deinen geheimen Begriff (${mySecret}) erraten!`);
             }
         }
 
-        // SUBMIT SECRET WORD FOR OPPONENT
-        function submitSecretWord() {
-            const word = document.getElementById('secret-word-input').value.trim();
-            if (!word) {
-                alert('Bitte gib einen Begriff für deinen Mitspieler ein!');
-                return;
-            }
+        function submitSecret() {
+            mySecret = document.getElementById('mySecretInput').value.trim();
+            if (!mySecret) { alert('Bitte gib einen Begriff ein!'); return; }
 
-            mySecretForOpponent = word;
-
-            // UI Adjustments
-            document.getElementById('submit-secret-btn').disabled = true;
-            document.getElementById('submit-secret-btn').classList.add('opacity-50');
-            document.getElementById('waiting-other-secret').classList.remove('hidden');
-
-            // Send secret to partner
-            sendData({ type: 'SUBMIT_SECRET', secretWord: word });
-
+            conn.send({ type: 'SECRET', secret: mySecret });
+            document.getElementById('mySecretInput').disabled = true;
+            document.getElementById('waitingForPartnerSecret').classList.remove('hidden');
+            
             checkBothSecretsReady();
         }
 
-        // CHECK IF BOTH PLAYERS ENTERED SECRETS
+        let partnerSecretReceived = false;
         function checkBothSecretsReady() {
-            if (mySecretForOpponent && opponentSecretSubmitted) {
-                // Both ready -> Start Game Phase
-                secretSetupScreen.classList.add('hidden');
-                gameDashboard.classList.remove('hidden');
-
-                // Display opponent's word for them to guess (visible to me)
-                document.getElementById('opponent-target-word-display').innerText = mySecretForOpponent;
-
-                // Host starts first
-                if (myRole === 'host') {
-                    setTurn(true);
-                } else {
-                    setTurn(false);
-                }
+            // Wenn wir einen Begriff vom Partner haben und er unseren hat, gehts los
+            if (mySecret && conn) {
+                // Wir wechseln zum Game-Screen, sobald beide da sind
+                document.getElementById('screenSecret').classList.add('hidden');
+                document.getElementById('screenGame').classList.remove('hidden');
+                
+                // Wer fängt an? Host fängt an
+                myTurn = isHost;
+                updateTurnUI();
             }
         }
 
-        // SET TURN STATE
-        function setTurn(myTurn) {
-            isMyTurn = myTurn;
-            const turnBadgeText = document.getElementById('turn-badge-text');
-            const askPanel = document.getElementById('ask-question-panel');
-            const answerPanel = document.getElementById('answer-question-panel');
-            const waitingPanel = document.getElementById('waiting-turn-panel');
+        function updateTurnUI() {
+            const indicator = document.getElementById('turnIndicator');
+            const qArea = document.getElementById('questionArea');
+            const aArea = document.getElementById('answerArea');
 
-            if (isMyTurn) {
-                turnBadgeText.innerText = 'Du bist am Zug!';
-                askPanel.classList.remove('hidden');
-                answerPanel.classList.add('hidden');
-                waitingPanel.classList.add('hidden');
+            if (myTurn) {
+                indicator.innerText = "Du bist am Zug (Frage stellen)!";
+                indicator.style.background = "#10b981";
+                qArea.classList.remove('hidden');
+                aArea.classList.add('hidden');
             } else {
-                turnBadgeText.innerText = `Warten auf ${opponentName}...`;
-                askPanel.classList.add('hidden');
-                answerPanel.classList.add('hidden');
-                waitingPanel.classList.remove('hidden');
+                indicator.innerText = `${opponentName} ist am Zug...`;
+                indicator.style.background = "#f59e0b";
+                qArea.classList.add('hidden');
             }
         }
 
-        // SEND QUESTION
         function sendQuestion() {
-            if (!isMyTurn) return;
+            const qText = document.getElementById('questionInput').value.trim();
+            if (!qText) return;
 
-            const qInput = document.getElementById('question-input');
-            const qText = qInput.value.trim();
-
-            if (!qText) {
-                alert('Bitte gib eine Frage ein!');
-                return;
-            }
-
-            // Send Question to Peer
-            sendData({ type: 'QUESTION', question: qText });
-
-            // UI update
-            qInput.value = '';
-            setTurn(false);
-            document.getElementById('turn-badge-text').innerText = `Warten auf Antwort von ${opponentName}...`;
-        }
-
-        // SHOW INCOMING QUESTION TO ANSWER
-        function showIncomingQuestion(qText) {
-            document.getElementById('waiting-turn-panel').classList.add('hidden');
-            document.getElementById('answer-question-panel').classList.remove('hidden');
-            document.getElementById('incoming-question-text').innerText = `"${qText}"`;
-        }
-
-        // ANSWER INCOMING QUESTION
-        function sendAnswer(answer) {
-            sendData({ type: 'ANSWER', answer: answer, question: pendingQuestion });
-
-            // Log locally
-            addLogEntry(opponentName, pendingQuestion, answer);
-
-            // Hide answer panel & switch turn back if answer was NO/UNKLAR
-            document.getElementById('answer-question-panel').classList.add('hidden');
-
-            if (answer === 'JA') {
-                // Partner gets another turn!
-                setTurn(false);
-                document.getElementById('turn-badge-text').innerText = `${opponentName} hat ein JA erhalten & fragt nochmal!`;
-            } else {
-                // Turn switches to me!
-                setTurn(true);
-            }
-        }
-
-        // HANDLE ANSWER RECEIVED FROM PARTNER
-        function handleAnswerReceived(answer, question) {
-            addLogEntry(myName, question, answer);
-
-            if (answer === 'JA') {
-                // I answered YES, so I get to ask again!
-                setTurn(true);
-                alert(`🎉 JA! Du darfst direkt noch eine Frage stellen!`);
-            } else {
-                // Switch turn to opponent
-                setTurn(false);
-            }
-        }
-
-        // ADD ENTRY TO CHAT LOG
-        function addLogEntry(asker, question, answer) {
-            const chatLog = document.getElementById('game-chat-log');
+            appendChat(`💬 Du fragst: "${qText}"`, 'answer');
+            conn.send({ type: 'QUESTION', text: qText });
+            document.getElementById('questionInput').value = '';
             
-            // Remove empty placeholder
-            if (questionHistory.length === 0) {
-                chatLog.innerHTML = '';
-            }
-
-            questionHistory.push({ asker, question, answer });
-            document.getElementById('log-count').innerText = `${questionHistory.length} Fragen`;
-
-            let badgeColor = 'bg-slate-700 text-slate-300';
-            if (answer === 'JA') badgeColor = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
-            if (answer === 'NEIN') badgeColor = 'bg-rose-500/20 text-rose-400 border border-rose-500/40';
-
-            const logItem = document.createElement('div');
-            logItem.className = 'bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1';
-            logItem.innerHTML = `
-                <div class="flex justify-between items-center text-[10px] text-slate-400">
-                    <span class="font-bold text-sky-400">${asker} fragt:</span>
-                    <span class="px-2 py-0.5 rounded-full font-bold text-[10px] ${badgeColor}">${answer}</span>
-                </div>
-                <div class="text-white font-medium">${question}</div>
-            `;
-
-            chatLog.appendChild(logItem);
-            chatLog.scrollTop = chatLog.scrollHeight;
+            myTurn = false;
+            updateTurnUI();
         }
 
-        // SUBMIT GUESS
-        function submitFinalGuess() {
-            const guessInput = document.getElementById('guess-input');
-            const guess = guessInput.value.trim();
-
-            if (!guess) {
-                alert('Bitte gib deinen Tipp ein!');
-                return;
-            }
-
-            // Simple fuzzy check or direct comparison
-            const target = opponentSecretForMe.trim().toLowerCase();
-            const userGuess = guess.toLowerCase();
-
-            if (target === userGuess || target.includes(userGuess)) {
-                // WIN!
-                sendData({ type: 'WINNER', winnerName: myName, secretWord: opponentSecretForMe });
-                handleGameEnd(true, myName, opponentSecretForMe);
-            } else {
-                alert(`❌ Leider falsch! Du hast "${guess}" getippt, aber das war nicht richtig. Mach weiter!`);
-                guessInput.value = '';
-            }
-        }
-
-        // HANDLE GAME OVER & CONFETTI
-        function handleGameEnd(isWinner, winnerName, word) {
-            document.getElementById('modal-winner-title').innerText = isWinner ? 'GEWONNEN! 🎉' : `${winnerName} gewinnt! 🏆`;
-            document.getElementById('modal-winner-desc').innerText = isWinner ? 'Du hast deinen Begriff richtig erraten!' : `${winnerName} hat den Begriff erraten!`;
+        function sendAnswer(ansText) {
+            appendChat(`👉 Antwort an ${opponentName}: ${ansText}`, 'question');
+            conn.send({ type: 'ANSWER', text: ansText });
             
-            document.getElementById('modal-my-word').innerText = opponentSecretForMe;
-            document.getElementById('modal-partner-word').innerText = mySecretForOpponent;
-
-            if (isWinner) {
-                // Confetti animation
-                confetti({
-                    particleCount: 150,
-                    spread: 80,
-                    origin: { y: 0.6 }
-                });
-            }
-
-            document.getElementById('game-over-modal').classList.remove('hidden');
+            document.getElementById('answerArea').classList.add('hidden');
+            document.getElementById('questionArea').classList.remove('hidden');
         }
-        // FORFEIT
-        function confirmSurrender() {
-            if (confirm('Möchtest du wirklich aufgeben und die Begriffe auflösen?')) {
-                sendData({ type: 'SURRENDER' });
-                handleGameEnd(false, opponentName, opponentSecretForMe);
+
+        function appendChat(text, type) {
+            const box = document.getElementById('chatBox');
+            const msg = document.createElement('div');
+            msg.className = `chat-message ${type}`;
+            msg.innerText = text;
+            box.appendChild(msg);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function toggleMySecret() {
+            const display = document.getElementById('assignedSecretDisplay');
+            if (display.innerText === '???') {
+                display.innerText = mySecret;
+            } else {
+                display.innerText = '???';
             }
+        }
+
+        function declareVictory() {
+            if (confirm("Bist du sicher, dass du deinen Begriff erraten hast?")) {
+                conn.send({ type: 'VICTORY' });
+                showWinner(myName, `hat den eigenen Begriff (${opponentSecret}) erraten! 🎉`);
+                triggerConfetti();
+            }
+        }
+
+        function showWinner(winnerName, subText) {
+            document.getElementById('winnerText').innerText = `${winnerName} gewinnt!`;
+            document.getElementById('winnerSubText').innerText = subText;
+            document.getElementById('winnerModal').classList.remove('hidden');
+            triggerConfetti();
+        }
+
+        function triggerConfetti() {
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
         }
     </script>
 </body>
