@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wer bin ich? – Live Duell</title>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- Konfetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
@@ -153,8 +155,10 @@
     </div>
 
     <script>
-        // Freier Firebase Realtime Server
-        const firebaseConfig = { databaseURL: "https://wer-bin-ich-game-default-rtdb.europe-west1.firebasedatabase.app" };
+        // KORRIGIERTE REGIONS-URL FÜR BELGIEN (europe-west1)
+        const firebaseConfig = { 
+            databaseURL: "https://wer-bin-ich-default-rtdb.europe-west1.firebasedatabase.app" 
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -173,13 +177,16 @@
             roomCode = Math.floor(1000 + Math.random() * 9000).toString();
             roomRef = db.ref('rooms/' + roomCode);
 
-            roomRef.set({ hostName: myName, status: 'waiting' });
+            roomRef.set({ hostName: myName, status: 'waiting' }, (error) => {
+                if (error) {
+                    alert("Fehler beim Erstellen des Raums: " + error.message);
+                } else {
+                    document.getElementById('codeText').innerText = roomCode;
+                    document.getElementById('roomCodeDisplay').classList.remove('hidden');
+                    listenToRoom();
+                }
+            });
             roomRef.onDisconnect().remove();
-
-            document.getElementById('codeText').innerText = roomCode;
-            document.getElementById('roomCodeDisplay').classList.remove('hidden');
-
-            listenToRoom();
         }
 
         function joinRoom() {
@@ -192,14 +199,19 @@
 
             roomRef.once('value', (snapshot) => {
                 if (!snapshot.exists()) {
-                    alert('Raum-Code nicht gefunden oder abgelaufen!');
+                    alert('Raum-Code nicht gefunden!');
                     return;
                 }
                 const data = snapshot.val();
                 opponentName = data.hostName;
 
-                roomRef.update({ guestName: myName, status: 'secret_setup' });
-                listenToRoom();
+                roomRef.update({ guestName: myName, status: 'secret_setup' }, (error) => {
+                    if (error) {
+                        alert("Fehler beim Beitreten: " + error.message);
+                    } else {
+                        listenToRoom();
+                    }
+                });
             });
         }
 
