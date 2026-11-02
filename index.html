@@ -134,9 +134,9 @@
                 <p id="incomingQuestionText" style="font-weight: bold; margin-bottom: 10px; font-size: 1.05rem;">Partner fragt: "..."</p>
                 <label>Deine Antwort wählen:</label>
                 <div class="answer-buttons">
-                    <button class="ans-btn btn-yes" onclick="sendAnswer('JA 👍')">JA</button>
-                    <button class="ans-btn btn-no" onclick="sendAnswer('NEIN 👎')">NEIN</button>
-                    <button class="ans-btn btn-maybe" onclick="sendAnswer('UNKLAR 🤷‍♂️')">UNKLAR</button>
+                    <button class="ans-btn btn-yes" onclick="sendAnswer('JA')">JA</button>
+                    <button class="ans-btn btn-no" onclick="sendAnswer('NEIN')">NEIN</button>
+                    <button class="ans-btn btn-maybe" onclick="sendAnswer('UNKLAR')">UNKLAR</button>
                 </div>
             </div>
 
@@ -322,13 +322,19 @@
         }
 
         function sendAnswer(ansText) {
-            roomRef.child('history').push({ text: `👉 Antwort von ${myName}: ${ansText}`, type: 'a' });
+            const displayAns = (ansText === 'JA') ? 'JA 👍' : (ansText === 'NEIN' ? 'NEIN 👎' : 'UNKLAR 🤷‍♂️');
+            roomRef.child('history').push({ text: `👉 Antwort von ${myName}: ${displayAns}`, type: 'a' });
             
-            const questionSender = (myRole === 'host') ? 'guest' : 'host'; 
+            let nextTurn;
+            if (ansText === 'NEIN') {
+                nextTurn = (myRole === 'host') ? 'guest' : 'host';
+            } else {
+                nextTurn = (myRole === 'host') ? 'host' : 'guest';
+            }
             
             roomRef.update({ 
                 activeQuestion: null, 
-                currentTurn: questionSender 
+                currentTurn: nextTurn 
             });
         }
 
@@ -338,12 +344,17 @@
         }
 
         function declareVictory() {
-            if (confirm("Hast du deinen Begriff wirklich erraten?")) {
+            const guess = prompt("Gib deinen vermuteten Begriff ein:");
+            if (!guess) return;
+
+            if (guess.trim().toLowerCase() === mySecret.trim().toLowerCase()) {
                 roomRef.update({
                     winner: true,
                     winnerName: myName,
                     winnerSubText: `hat den Begriff "${mySecret}" richtig erraten! 🎉`
                 });
+            } else {
+                alert(`Leider falsch! "${guess}" ist nicht dein gesuchter Begriff. Versuche es weiter!`);
             }
         }
 
