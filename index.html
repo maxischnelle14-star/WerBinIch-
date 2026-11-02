@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wer bin ich? – Live Duell v1.2</title>
+    <title>Wer bin ich? – Live Duell v1.5</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -56,7 +56,7 @@
 
     <header>
         <h1>Wer bin ich?</h1>
-        <p>Echtzeit-Duell (v1.2)</p>
+        <p>Echtzeit-Duell (v1.5)</p>
     </header>
 
     <div class="container">
@@ -140,7 +140,12 @@
                 </div>
             </div>
 
-            <button class="btn btn-danger" style="margin-top: 20px;" onclick="declareVictory()">Ich habe meinen Begriff erraten! 🎉</button>
+            <!-- SIEG-EINGABEFELD (Fester Bestandteil der Oberfläche) -->
+            <div style="margin-top: 25px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                <label>Weißt du, wer du bist? Tippe deinen Begriff ein:</label>
+                <input type="text" id="guessInput" placeholder="z.B. Albert Einstein">
+                <button class="btn btn-danger" onclick="declareVictory()">Begriff einlösen & Gewinnen! 🎉</button>
+            </div>
         </div>
     </div>
 
@@ -325,14 +330,7 @@
             const displayAns = (ansText === 'JA') ? 'JA 👍' : (ansText === 'NEIN' ? 'NEIN 👎' : 'UNKLAR 🤷‍♂️');
             roomRef.child('history').push({ text: `👉 Antwort von ${myName}: ${displayAns}`, type: 'a' });
             
-            // Bestimme das nächste Turn: Wer die Frage gestellt hat (activeQuestion.from) vs. wer geantwortet hat (myRole)
-            // Bei NEIN geht der Zug an den Antwortenden (myRole), bei JA/UNKLAR bleibt er beim Frager.
-            let nextTurn;
-            if (ansText === 'NEIN') {
-                nextTurn = myRole; // Derjenige, der gerade mit NEIN geantwortet hat, ist jetzt dran!
-            } else {
-                nextTurn = (myRole === 'host') ? 'guest' : 'host'; // Der Frager bleibt dran
-            }
+            const nextTurn = (ansText === 'NEIN') ? myRole : ((myRole === 'host') ? 'guest' : 'host');
             
             roomRef.update({ 
                 activeQuestion: null, 
@@ -345,18 +343,35 @@
             display.innerText = (display.innerText === '???') ? mySecret : '???';
         }
 
-        function declareVictory() {
-            const guess = prompt("Gib deinen vermuteten Begriff ein:");
-            if (!guess) return;
+        function cleanText(text) {
+            return text.toString()
+                       .toLowerCase()
+                       .trim()
+                       .replace(/ä/g, 'ae')
+                       .replace(/ö/g, 'oe')
+                       .replace(/ü/g, 'ue')
+                       .replace(/ß/g, 'ss')
+                       .replace(/\s+/g, '');
+        }
 
-            if (guess.trim().toLowerCase() === mySecret.trim().toLowerCase()) {
+        function declareVictory() {
+            const guessInput = document.getElementById('guessInput');
+            const guess = guessInput.value;
+            
+            if (!guess || !guess.trim()) {
+                alert('Bitte tippe zuerst deinen Tipp in das Eingabefeld ein!');
+                return;
+            }
+
+            if (cleanText(guess) === cleanText(mySecret)) {
                 roomRef.update({
                     winner: true,
                     winnerName: myName,
                     winnerSubText: `hat den Begriff "${mySecret}" richtig erraten! 🎉`
                 });
             } else {
-                alert(`Leider falsch! "${guess}" ist nicht dein gesuchter Begriff. Versuche es weiter!`);
+                alert(`Leider falsch! "${guess}" ist nicht dein gesuchter Begriff.`);
+                guessInput.value = '';
             }
         }
 
