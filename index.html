@@ -155,7 +155,6 @@
     </div>
 
     <script>
-        // DIE KORREKTE FIREBASE URL MIT -6ca7d
         const firebaseConfig = { 
             databaseURL: "https://wer-bin-ich-6ca7d-default-rtdb.europe-west1.firebasedatabase.app" 
         };
@@ -221,6 +220,7 @@
                 if (!data) return;
 
                 if (myRole === 'host' && data.guestName) opponentName = data.guestName;
+                if (myRole === 'guest' && data.hostName) opponentName = data.hostName;
 
                 document.getElementById('partnerNameDisplay').innerText = opponentName;
                 document.getElementById('gameOpponentName').innerText = opponentName;
@@ -300,7 +300,7 @@
             } else {
                 aArea.classList.add('hidden');
                 if (isMyTurn) {
-                    indicator.innerText = "Du bist am Zug!";
+                    indicator.innerText = "Du bist am Zug (Frage stellen)!";
                     indicator.style.background = "#10b981";
                     qArea.classList.remove('hidden');
                 } else {
@@ -323,8 +323,13 @@
 
         function sendAnswer(ansText) {
             roomRef.child('history').push({ text: `👉 Antwort von ${myName}: ${ansText}`, type: 'a' });
-            const nextTurn = (myRole === 'host') ? 'guest' : 'host';
-            roomRef.update({ activeQuestion: null, currentTurn: nextTurn });
+            
+            const questionSender = (myRole === 'host') ? 'guest' : 'host'; 
+            
+            roomRef.update({ 
+                activeQuestion: null, 
+                currentTurn: questionSender 
+            });
         }
 
         function toggleMySecret() {
